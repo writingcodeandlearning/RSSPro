@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <attr name="rssBg" format="color" />
+    <attr name="rssSurface" format="color" />
+    <attr name="rssSurfaceAlt" format="color" />
+    <attr name="rssText" format="color" />
+    <attr name="rssTextSecondary" format="color" />
+    <attr name="rssDivider" format="color" />
+    <attr name="rssAccent" format="color" />
+    <attr name="rssOnAccent" format="color" />
+    <attr name="rssDanger" format="color" />
+</resources>

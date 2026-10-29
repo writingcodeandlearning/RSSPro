@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Base.Light" parent="android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/light_bg</item>
+        <item name="android:colorAccent">@color/light_accent</item>
+        <item name="android:textColorPrimary">@color/light_text</item>
+        <item name="android:textColorSecondary">@color/light_text_secondary</item>
+        <item name="android:statusBarColor">@color/light_bg</item>
+        <item name="android:navigationBarColor">@color/light_bg</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
+        <item name="android:fontFamily">sans</item>
+        <item name="android:windowActionModeOverlay">true</item>
+        <item name="rssBg">@color/light_bg</item>
+        <item name="rssSurface">@color/light_surface</item>
+        <item name="rssSurfaceAlt">@color/light_surface_alt</item>
+        <item name="rssText">@color/light_text</item>
+        <item name="rssTextSecondary">@color/light_text_secondary</item>
+        <item name="rssDivider">@color/light_divider</item>
+        <item name="rssAccent">@color/light_accent</item>
+        <item name="rssOnAccent">@color/light_on_accent</item>
+        <item name="rssDanger">@color/light_danger</item>
+    </style>
+
+    <style name="Base.Dark" parent="android:style/Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/dark_bg</item>
+        <item name="android:colorAccent">@color/dark_accent</item>
+        <item name="android:textColorPrimary">@color/dark_text</item>
+        <item name="android:textColorSecondary">@color/dark_text_secondary</item>
+        <item name="android:statusBarColor">@color/dark_bg</item>
+        <item name="android:navigationBarColor">@color/dark_bg</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+        <item name="android:fontFamily">sans</item>
+        <item name="android:windowActionModeOverlay">true</item>
+        <item name="rssBg">@color/dark_bg</item>
+        <item name="rssSurface">@color/dark_surface</item>
+        <item name="rssSurfaceAlt">@color/dark_surface_alt</item>
+        <item name="rssText">@color/dark_text</item>
+        <item name="rssTextSecondary">@color/dark_text_secondary</item>
+        <item name="rssDivider">@color/dark_divider</item>
+        <item name="rssAccent">@color/dark_accent</item>
+        <item name="rssOnAccent">@color/dark_on_accent</item>
+        <item name="rssDanger">@color/dark_danger</item>
+    </style>
+
+    <style name="AppTheme" parent="Base.Light" />
+    <style name="AppThemeLight" parent="Base.Light" />
+    <style name="AppThemeDark" parent="Base.Dark" />
+</resources>
