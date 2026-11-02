@@ -165,6 +165,19 @@ public class MainActivity extends Activity {
         super.onResume();
         if (store != null) {
             render();
+            if (articleList != null && restoreArticleScroll) {
+                final int position = articleScrollPosition;
+                final int offset = articleScrollOffset;
+                restoreArticleScroll = false;
+                articleList.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (articleList != null) {
+                            articleList.setSelectionFromTop(position, offset);
+                        }
+                    }
+                });
+            }
         }
     }
 
@@ -1000,7 +1013,9 @@ public class MainActivity extends Activity {
                 list.post(new Runnable() {
                     @Override
                     public void run() {
-                        articleList.setSelectionFromTop(position, offset);
+                        if (articleList != null) {
+                            articleList.setSelectionFromTop(position, offset);
+                        }
                     }
                 });
             }
@@ -1008,13 +1023,16 @@ public class MainActivity extends Activity {
     }
 
     private void prepareArticleScrollRestore() {
-        if (articleList == null) {
+        if (articleList == null || currentTab != TAB_ARTICLES) {
             return;
         }
         articleScrollPosition = articleList.getFirstVisiblePosition();
         View first = articleList.getChildAt(0);
         articleScrollOffset = first == null
                 ? 0 : first.getTop() - articleList.getPaddingTop();
+        if (articleScrollPosition < 0) {
+            articleScrollPosition = 0;
+        }
         restoreArticleScroll = true;
     }
 
@@ -1140,6 +1158,9 @@ public class MainActivity extends Activity {
     }
 
     private void openArticle(String articleId) {
+        if (currentTab == TAB_ARTICLES) {
+            prepareArticleScrollRestore();
+        }
         Intent intent = new Intent(this, ArticleActivity.class);
         intent.putExtra(EXTRA_ARTICLE_ID, articleId);
         startActivity(intent);
