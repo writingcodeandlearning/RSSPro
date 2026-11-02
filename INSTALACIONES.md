@@ -8,12 +8,12 @@ Objetivo: compilar y firmar un APK Android de RSS sin Gradle ni AndroidX, usando
 
 - APK: `dist/RSSPro.apk`
 - Paquete: `com.rsspro`
-- Versión: `1.3.1` (`versionCode` 5)
+- Versión: `1.3.2` (`versionCode` 6)
 - Nombre visible: `RSSPro`
 - SDK mínimo: 23 (Android 6.0)
 - SDK objetivo: 33 (Android 13)
 - Tamaño: 173 KiB (176.679 bytes)
-- SHA-256: `27b01efddbb56ba93a202bc3f60782c26e748ee4c857571f7b84e18a856cb320`
+- SHA-256: `5593625a9587b8a4622b2c4817cdb4a395862ee9c3bd13eee766149ddef590b2`
 - Firma: esquemas v1, v2 y v3 verificados correctamente.
 - Certificado: `CN=RSSPro, OU=Lector RSS, O=RSSPro, L=Local, C=ES`
 - SHA-256 del certificado: `ce6f3aaa8be6235ec00c07ee4df171b8592d3684c1af50eaa8ff4751c17032fe`
@@ -78,6 +78,7 @@ tools/root/usr/lib
 21. Se corrigió el falso error de detalle completo: si el feed ya aporta texto, no se muestra el aviso de reintento cuando falla una página SPA.
 22. Se añadieron pruebas del simulador, del orden `media:content`/`description` de MSRC y de páginas SPA sin texto, hasta un total de 108.
 23. Para la versión 1.3.1 se corrigió el gesto de deslizamiento: se eliminó el bloqueo tras movimientos no horizontales, se reevalúa la dirección en cada movimiento y se redujeron el umbral y la animación para hacerlo más fluido.
+24. Para la versión 1.3.2 se limita «Marcar todo como leído» al alcance visible (fuente y búsqueda) y se hace el deslizamiento estable al umbral sin rebote.
 
 ## Verificaciones ejecutadas
 
@@ -98,7 +99,7 @@ Resultados relevantes:
 - v2 APK Signature Scheme: `true`
 - v3 APK Signature Scheme: `true`
 - `zipalign -c 4`: correcto.
-- `aapt2 dump badging`: `com.rsspro`, versión `1.3.1` (`versionCode` 5), `minSdk 23`, `targetSdk 33`.
+- `aapt2 dump badging`: `com.rsspro`, versión `1.3.2` (`versionCode` 6), `minSdk 23`, `targetSdk 33`.
 - Actividad lanzable: `com.rsspro.MainActivity`.
 - Pruebas: parser RSS/Atom/RDF, BOM, XML malformado, rechazo de DOCTYPE/entidades externas, HTML, fechas, normalización de URLs, extracción de imágenes, categorías, búsqueda, extracción de artículos completos, retención, semántica de filtros, simulador de filtros y regresiones de MSRC/SPA.
 

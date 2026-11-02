@@ -80,10 +80,7 @@ public class MainActivity extends Activity {
     private static final String STATE_FEED = "selected_feed";
     private static final String STATE_MODE = "article_mode";
     private static final String STATE_SEARCH = "article_search";
-    private static final int SWIPE_COMMIT_DP = 80;
-    private static final int SWIPE_MAX_DP = 120;
-    private static final int SWIPE_EXIT_MS = 90;
-    private static final int SWIPE_RESET_MS = 70;
+    private static final int SWIPE_COMMIT_DP = 64;
     private static final int MODE_ALL = 0;
     private static final int MODE_UNREAD = 1;
     private static final int MODE_READ = 2;
@@ -629,6 +626,21 @@ public class MainActivity extends Activity {
         if (feeds.size() >= 2) {
             addFeedSelector(root, feeds, visible, readIds);
         }
+        List<Article> readScope = new ArrayList<Article>();
+        String normalizedQueryScope = ArticleSearch.normalize(searchQuery);
+        for (Article article : sourceArticles) {
+            if (articleMode == MODE_SEARCH && normalizedQueryScope.length() > 0
+                    && !ArticleSearch.matches(article, searchQuery)) {
+                continue;
+            }
+            readScope.add(article);
+        }
+        int unreadScope = 0;
+        for (Article article : readScope) {
+            if (!readIds.contains(article.id)) {
+                unreadScope++;
+            }
+        }
         if (displayed.isEmpty()) {
             if (sourceArticles.isEmpty()) {
                 addInlineEmpty(root, "Sin artículos en esta fuente",
@@ -677,8 +689,12 @@ public class MainActivity extends Activity {
                             }
                         });
             }
+            if (unreadScope > 0) {
+                addArticleSummary(root, summaryText, readScope, unreadScope);
+            }
             return;
         }
+        addArticleSummary(root, summaryText, readScope, unreadScope);
         addList(root, new ArticleAdapter(displayed));
     }
 
@@ -698,7 +714,7 @@ public class MainActivity extends Activity {
         renderArticles();
     }
 
-    private void addArticleSummary(LinearLayout root, String text, final List<Article> all,
+    private void addArticleSummary(LinearLayout root, String text, final List<Article> scope,
                                    int unreadAll) {
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
@@ -711,7 +727,7 @@ public class MainActivity extends Activity {
             action.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    confirmMarkAllRead(all);
+                    confirmMarkAllRead(scope);
                 }
             });
             LinearLayout.LayoutParams params = Ui.wrapWrap();
@@ -721,10 +737,10 @@ public class MainActivity extends Activity {
         root.addView(row, Ui.matchWrap());
     }
 
-    private void confirmMarkAllRead(final List<Article> all) {
+    private void confirmMarkAllRead(final List<Article> scope) {
         Set<String> readIds = store.getReadIds();
         final List<String> ids = new ArrayList<String>();
-        for (Article article : all) {
+        for (Article article : scope) {
             if (article.id != null && !readIds.contains(article.id)) {
                 ids.add(article.id);
             }
@@ -733,10 +749,17 @@ public class MainActivity extends Activity {
             Toast.makeText(this, "No hay artículos sin leer.", Toast.LENGTH_SHORT).show();
             return;
         }
+        String location;
+        if (selectedFeedId == null) {
+            location = "de la selección actual";
+        } else {
+            String feedName = feedName(selectedFeedId);
+            location = "de " + feedName;
+        }
         new AlertDialog.Builder(this)
                 .setTitle("Marcar todo como leído")
                 .setMessage("Se marcarán " + ids.size()
-                        + " artículos de todas las fuentes, incluidos los ocultos por filtros.")
+                        + " artículos sin leer " + location + ".")
                 .setPositiveButton("Marcar todo", new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
@@ -1003,24 +1026,14 @@ public class MainActivity extends Activity {
         }
         store.markRead(article.id);
         if (currentTab != TAB_ARTICLES) {
+            card.setTranslationX(0);
+            card.setAlpha(1.0f);
             return;
         }
+        card.setTranslationX(0);
+        card.setAlpha(1.0f);
         prepareArticleScrollRestore();
-        final int target = Math.max(card.getWidth(), Ui.dp(this, 240));
-        card.animate()
-                .translationX(target)
-                .alpha(0.15f)
-                .setDuration(SWIPE_EXIT_MS)
-                .withEndAction(new Runnable() {
-                    @Override
-                    public void run() {
-                        if (!isFinishing() && !isDestroyed()
-                                && currentTab == TAB_ARTICLES) {
-                            renderArticles();
-                        }
-                    }
-                })
-                .start();
+        renderArticles();
     }
 
     private void showEmpty(String title, String message, String actionLabel,
@@ -2100,7 +2113,7 @@ public class MainActivity extends Activity {
                 private float startX;
                 private float startY;
                 private boolean moved;
-                private boolean swiping;
+                private boolean committed;
 
                 @Override
                 public boolean onTouch(View view, MotionEvent event) {
@@ -2109,7 +2122,7 @@ public class MainActivity extends Activity {
                             startX = event.getX();
                             startY = event.getY();
                             moved = false;
-                            swiping = false;
+                            committed = false;
                             if (!store.isRead(article.id)) {
                                 view.animate().cancel();
                                 view.setTranslationX(0);
@@ -2118,59 +2131,46 @@ public class MainActivity extends Activity {
                             view.setPressed(true);
                             return true;
                         case MotionEvent.ACTION_MOVE:
+                            if (committed) {
+                                return true;
+                            }
                             float dx = event.getX() - startX;
                             float dy = event.getY() - startY;
                             int slop = ViewConfiguration.get(MainActivity.this)
                                     .getScaledTouchSlop();
-                            if (!swiping) {
-                                if (Math.abs(dx) > slop || Math.abs(dy) > slop) {
-                                    moved = true;
-                                    view.setPressed(false);
-                                }
-                                if (dx > slop && Math.abs(dx) > Math.abs(dy) * 1.1f
-                                        && !store.isRead(article.id)) {
-                                    swiping = true;
-                                    view.getParent().requestDisallowInterceptTouchEvent(true);
-                                }
+                            if (Math.abs(dx) > slop || Math.abs(dy) > slop) {
+                                moved = true;
+                                view.setPressed(false);
                             }
-                            if (swiping) {
-                                float distance = Math.min(dx,
-                                        Ui.dp(MainActivity.this, SWIPE_MAX_DP));
-                                view.setTranslationX(Math.max(0, distance));
-                                view.setAlpha(1.0f - Math.min(0.22f,
-                                        distance / (float) Ui.dp(MainActivity.this, SWIPE_MAX_DP)
-                                                * 0.22f));
+                            if (dx > slop * 1.4f && Math.abs(dx) > Math.abs(dy) * 1.4f
+                                    && !store.isRead(article.id)) {
+                                view.getParent().requestDisallowInterceptTouchEvent(true);
+                            }
+                            if (dx >= Ui.dp(MainActivity.this, SWIPE_COMMIT_DP)
+                                    && Math.abs(dx) > Math.abs(dy) * 1.1f
+                                    && !store.isRead(article.id)) {
+                                committed = true;
+                                view.getParent().requestDisallowInterceptTouchEvent(false);
+                                markArticleReadFromSwipe(article, view);
+                                return true;
                             }
                             return true;
                         case MotionEvent.ACTION_UP:
                             view.setPressed(false);
                             view.getParent().requestDisallowInterceptTouchEvent(false);
-                            if (swiping) {
-                                if (view.getTranslationX()
-                                        >= Ui.dp(MainActivity.this, SWIPE_COMMIT_DP)) {
-                                    markArticleReadFromSwipe(article, view);
-                                } else {
-                                    view.animate()
-                                            .translationX(0)
-                                            .alpha(1.0f)
-                                            .setDuration(SWIPE_RESET_MS)
-                                            .start();
-                                }
-                            } else {
+                            if (!committed) {
                                 view.setTranslationX(0);
                                 view.setAlpha(1.0f);
                                 if (!moved) {
                                     view.performClick();
                                 }
                             }
-                            swiping = false;
                             return true;
                         case MotionEvent.ACTION_CANCEL:
                             view.setPressed(false);
                             view.getParent().requestDisallowInterceptTouchEvent(false);
                             view.setTranslationX(0);
                             view.setAlpha(1.0f);
-                            swiping = false;
                             return true;
                         default:
                             return false;

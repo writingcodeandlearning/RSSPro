@@ -13,7 +13,7 @@ public final class FeedFetcher {
     private static final int MAX_BYTES = 6 * 1024 * 1024;
     private static final int MAX_PAGE_BYTES = 3 * 1024 * 1024;
     private static final int MAX_REDIRECTS = 5;
-    private static final String USER_AGENT = "RSSPro/1.3.1 (Android RSS reader)";
+    private static final String USER_AGENT = "RSSPro/1.3.2 (Android RSS reader)";
     private static final String FEED_ACCEPT =
             "application/rss+xml, application/atom+xml, application/xml, text/xml, */*";
     private static final String PAGE_ACCEPT =

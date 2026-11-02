@@ -48,6 +48,11 @@ La primera descarga de una fuente no genera notificaciones; solo establece la l�
 
 El botón `Probar` de un filtro de notificación abre un simulador. Permite editar el contenido de prueba o elegir un artículo real de la caché y muestra si la regla coincide, si el artículo sería visible y si generaría una notificación. La prueba no modifica reglas ni envía avisos.
 
+## Novedades 1.3.2
+
+- Marcar todo como leído solo afecta a los artículos sin leer de la selección actual (fuente o búsqueda).
+- Deslizamiento para marcar como leído más estable: se marca al cruzar el umbral sin desplazamiento ni rebote.
+
 ## Novedades 1.3.1
 
 - Deslizamiento para marcar como leído más rápido y fluido.
