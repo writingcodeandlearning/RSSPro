@@ -70,13 +70,14 @@ import java.util.Set;
 import java.util.UUID;
 
 public class MainActivity extends Activity {
-    public static final String EXTRA_ARTICLE_ID = "com.rsspro.extra.ARTICLE_ID";
-
+    public static final String EXTRA_ARTICLE_ID = "article_id";
+    private static final String STATE_TAB = "current_tab";
     private static final int TAB_ARTICLES = 0;
     private static final int TAB_FEEDS = 1;
     private static final int TAB_FILTERS = 2;
+    private static final int REQUEST_EXPORT_FILTERS = 9001;
+    private static final int REQUEST_IMPORT_FILTERS = 9002;
     private static final int REQUEST_NOTIFICATIONS = 5001;
-    private static final String STATE_TAB = "current_tab";
     private static final String STATE_FEED = "selected_feed";
     private static final String STATE_MODE = "article_mode";
     private static final String STATE_SEARCH = "article_search";
@@ -635,7 +636,6 @@ public class MainActivity extends Activity {
         if (active > 0) {
             summaryText += " · " + active + " filtros activos";
         }
-        addArticleSummary(root, summaryText, all, unreadAll);
         if (feeds.size() >= 2) {
             addFeedSelector(root, feeds, visible, readIds);
         }
@@ -656,6 +656,7 @@ public class MainActivity extends Activity {
         }
         if (displayed.isEmpty()) {
             if (sourceArticles.isEmpty()) {
+                addArticleSummary(root, summaryText, readScope, unreadScope);
                 addInlineEmpty(root, "Sin artículos en esta fuente",
                         "Esta fuente no tiene artículos visibles con los filtros actuales.",
                         "Ver todas", new View.OnClickListener() {
@@ -666,6 +667,7 @@ public class MainActivity extends Activity {
                             }
                         });
             } else if (articleMode == MODE_SEARCH && normalizedQuery.length() > 0) {
+                addArticleSummary(root, summaryText, readScope, unreadScope);
                 addInlineEmpty(root, "Sin resultados",
                         "Ningún artículo coincide con todos los términos de la búsqueda.",
                         "Limpiar búsqueda", new View.OnClickListener() {
@@ -675,6 +677,7 @@ public class MainActivity extends Activity {
                             }
                         });
             } else if (articleMode == MODE_UNREAD) {
+                addArticleSummary(root, summaryText, readScope, unreadScope);
                 addInlineEmpty(root, "No hay artículos sin leer",
                         "Todos los artículos de esta selección ya están leídos.",
                         "Ver todos", new View.OnClickListener() {
@@ -684,6 +687,7 @@ public class MainActivity extends Activity {
                             }
                         });
             } else if (articleMode == MODE_READ) {
+                addArticleSummary(root, summaryText, readScope, unreadScope);
                 addInlineEmpty(root, "No hay artículos leídos",
                         "Todavía no has abierto ningún artículo de esta selección.",
                         "Ver todos", new View.OnClickListener() {
@@ -693,6 +697,7 @@ public class MainActivity extends Activity {
                             }
                         });
             } else {
+                addArticleSummary(root, summaryText, readScope, unreadScope);
                 addInlineEmpty(root, "Sin artículos",
                         "No hay artículos que coincidan con la selección actual.",
                         "Ver todos", new View.OnClickListener() {
@@ -701,9 +706,6 @@ public class MainActivity extends Activity {
                                 setArticleMode(MODE_ALL);
                             }
                         });
-            }
-            if (unreadScope > 0) {
-                addArticleSummary(root, summaryText, readScope, unreadScope);
             }
             return;
         }
@@ -929,6 +931,55 @@ public class MainActivity extends Activity {
                             showFilterDialog(null);
                         }
                     });
+            // Also allow help/export/import even if empty
+            LinearLayout root = newScreen();
+            LinearLayout row = new LinearLayout(this);
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            row.setGravity(Gravity.CENTER_VERTICAL);
+            row.setPadding(Ui.dp(this, 16), Ui.dp(this, 9), Ui.dp(this, 16), Ui.dp(this, 2));
+            TextView summary = Ui.text(this, "0 filtros", 12, Ui.secondaryColor(this), false);
+            row.addView(summary, Ui.weightWrap(1));
+            TextView helpBtn = Ui.action(this, "Ayuda", true);
+            helpBtn.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    showFilterHelpDialog();
+                }
+            });
+            LinearLayout.LayoutParams hp = Ui.wrapWrap();
+            hp.leftMargin = Ui.dp(this, 6);
+            row.addView(helpBtn, hp);
+            TextView exp = Ui.action(this, "Exportar", true);
+            exp.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    exportFilters();
+                }
+            });
+            LinearLayout.LayoutParams ep = Ui.wrapWrap();
+            ep.leftMargin = Ui.dp(this, 6);
+            row.addView(exp, ep);
+            TextView imp = Ui.action(this, "Importar", true);
+            imp.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    importFilters();
+                }
+            });
+            LinearLayout.LayoutParams ip = Ui.wrapWrap();
+            ip.leftMargin = Ui.dp(this, 6);
+            row.addView(imp, ip);
+            root.addView(row, Ui.matchWrap());
+            TextView emptyCard = Ui.text(this,
+                    "Sin filtros. Usa \"Nuevo filtro\" para empezar. "
+                            + "Toca \"Ayuda\" para ver ejemplos.",
+                    13, Ui.secondaryColor(this), false);
+            emptyCard.setBackground(Ui.card(this, false));
+            int pad2 = Ui.dp(this, 13);
+            emptyCard.setPadding(pad2, pad2, pad2, pad2);
+            LinearLayout.LayoutParams epc = Ui.matchWrap();
+            epc.setMargins(Ui.dp(this, 16), Ui.dp(this, 9), Ui.dp(this, 16), Ui.dp(this, 16));
+            root.addView(emptyCard, epc);
             return;
         }
 
@@ -940,16 +991,56 @@ public class MainActivity extends Activity {
             }
         }
         String summaryText = rules.size() + " filtros · " + active + " activos";
-        addSummary(root, summaryText, "Nuevo", new View.OnClickListener() {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(Ui.dp(this, 16), Ui.dp(this, 9), Ui.dp(this, 16), Ui.dp(this, 2));
+        TextView summary = Ui.text(this, summaryText, 12, Ui.secondaryColor(this), false);
+        row.addView(summary, Ui.weightWrap(1));
+        TextView helpBtn = Ui.action(this, "Ayuda", true);
+        helpBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                showFilterHelpDialog();
+            }
+        });
+        LinearLayout.LayoutParams hp = Ui.wrapWrap();
+        hp.leftMargin = Ui.dp(this, 6);
+        row.addView(helpBtn, hp);
+        TextView exp = Ui.action(this, "Exportar", true);
+        exp.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                exportFilters();
+            }
+        });
+        LinearLayout.LayoutParams ep = Ui.wrapWrap();
+        ep.leftMargin = Ui.dp(this, 6);
+        row.addView(exp, ep);
+        TextView imp = Ui.action(this, "Importar", true);
+        imp.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                importFilters();
+            }
+        });
+        LinearLayout.LayoutParams ip = Ui.wrapWrap();
+        ip.leftMargin = Ui.dp(this, 6);
+        row.addView(imp, ip);
+        TextView nue = Ui.action(this, "Nuevo", true);
+        nue.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 showFilterDialog(null);
             }
         });
+        LinearLayout.LayoutParams np = Ui.wrapWrap();
+        np.leftMargin = Ui.dp(this, 6);
+        row.addView(nue, np);
+        root.addView(row, Ui.matchWrap());
         addHelpCard(root,
                 "Mostrar/Ocultar afecta a la lista. Notificar/Silenciar afecta a los avisos. "
-                        + "Si hay reglas Mostrar, solo se ven las coincidencias. "
-                        + "Si hay reglas Notificar, solo se avisa de las coincidencias.");
+                        + "Si hay reglas Mostrar, solo se ven las coincidencias.");
         addList(root, new FilterAdapter(rules));
     }
 
@@ -1167,6 +1258,11 @@ public class MainActivity extends Activity {
     }
 
     private void showFeedDialog() {
+        showFeedDialog(null);
+    }
+
+    private void showFeedDialog(final Feed existing) {
+        final boolean editing = existing != null;
         LinearLayout wrapper = new LinearLayout(this);
         wrapper.setOrientation(LinearLayout.VERTICAL);
         int pad = Ui.dp(this, 20);
@@ -1177,6 +1273,9 @@ public class MainActivity extends Activity {
         url.setHint("https://ejemplo.com/feed.xml");
         url.setSingleLine(true);
         url.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI);
+        if (editing) {
+            url.setText(existing.url);
+        }
         wrapper.addView(url, Ui.matchWrap());
 
         wrapper.addView(dialogLabel("Nombre opcional"), Ui.matchWrap());
@@ -1184,6 +1283,9 @@ public class MainActivity extends Activity {
         name.setHint("Mi fuente favorita");
         name.setSingleLine(true);
         name.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_SENTENCES);
+        if (editing && existing.title != null) {
+            name.setText(existing.title);
+        }
         wrapper.addView(name, Ui.matchWrap());
 
         TextView hint = Ui.text(this,
@@ -1193,9 +1295,9 @@ public class MainActivity extends Activity {
         wrapper.addView(hint, Ui.matchWrap());
 
         final AlertDialog dialog = new AlertDialog.Builder(this)
-                .setTitle("Añadir fuente")
+                .setTitle(editing ? "Editar fuente" : "Añadir fuente")
                 .setView(wrapper)
-                .setPositiveButton("Añadir", null)
+                .setPositiveButton(editing ? "Guardar" : "Añadir", null)
                 .setNegativeButton("Cancelar", null)
                 .create();
         dialog.setOnShowListener(new DialogInterface.OnShowListener() {
@@ -1213,16 +1315,57 @@ public class MainActivity extends Activity {
                                             ex.getMessage(), Toast.LENGTH_LONG).show();
                                     return;
                                 }
-                                for (Feed existing : store.getFeeds()) {
-                                    if (normalized.equals(existing.url)) {
+                                List<Feed> feeds = store.getFeeds();
+                                for (Feed other : feeds) {
+                                    if (editing && other == existing) {
+                                        continue;
+                                    }
+                                    if (normalized.equals(other.url)) {
                                         Toast.makeText(MainActivity.this,
                                                 "Esa fuente ya está añadida.",
                                                 Toast.LENGTH_SHORT).show();
                                         return;
                                     }
                                 }
+                                if (editing) {
+                                    String oldUrl = existing.url;
+                                    String newTitle = name.getText().toString().trim();
+                                    existing.url = normalized;
+                                    existing.title = newTitle.length() == 0 ? null : newTitle;
+                                    store.saveFeeds(feeds);
+                                    if (!oldUrl.equals(normalized)) {
+                                        migrateFeedReferences(oldUrl, normalized);
+                                    } else if (newTitle.length() > 0 && (existing.title == null
+                                            || !newTitle.equals(existing.title))) {
+                                        // title updated; still save done
+                                    }
+                                    // update article feed titles if possible
+                                    List<com.rsspro.data.Article> articles = store.getArticles();
+                                    boolean changed = false;
+                                    for (com.rsspro.data.Article a : articles) {
+                                        if (a != null && normalized.equals(a.feedId)) {
+                                            String dt = existing.displayTitle();
+                                            if (dt != null && !dt.equals(a.feedTitle)) {
+                                                a.feedTitle = dt;
+                                                changed = true;
+                                            }
+                                        }
+                                    }
+                                    if (changed) {
+                                        store.saveArticles(articles);
+                                    }
+                                    dialog.dismiss();
+                                    selectTab(TAB_FEEDS);
+                                    render();
+                                    Toast.makeText(MainActivity.this,
+                                            "Fuente actualizada.",
+                                            Toast.LENGTH_SHORT).show();
+                                    if (!oldUrl.equals(normalized)) {
+                                        syncAll();
+                                    }
+                                    return;
+                                }
                                 Feed feed = new Feed(normalized, name.getText().toString().trim());
-                                List<Feed> feeds = store.getFeeds();
                                 feeds.add(feed);
                                 store.saveFeeds(feeds);
                                 dialog.dismiss();
@@ -1236,6 +1379,34 @@ public class MainActivity extends Activity {
             }
         });
         dialog.show();
+    }
+
+    private void migrateFeedReferences(String oldUrl, String newUrl) {
+        if (oldUrl == null || newUrl == null || oldUrl.equals(newUrl)) {
+            return;
+        }
+        List<com.rsspro.data.Article> articles = store.getArticles();
+        boolean aChanged = false;
+        for (com.rsspro.data.Article a : articles) {
+            if (a != null && oldUrl.equals(a.feedId)) {
+                a.feedId = newUrl;
+                aChanged = true;
+            }
+        }
+        if (aChanged) {
+            store.saveArticles(articles);
+        }
+        List<FilterRule> rules = store.getRules();
+        boolean rChanged = false;
+        for (FilterRule r : rules) {
+            if (r != null && oldUrl.equals(r.feedId)) {
+                r.feedId = newUrl;
+                rChanged = true;
+            }
+        }
+        if (rChanged) {
+            store.saveRules(rules);
+        }
     }
 
     private void confirmDeleteFeed(final Feed feed) {
@@ -1354,18 +1525,26 @@ public class MainActivity extends Activity {
         enabled.setChecked(existing == null || existing.enabled);
         wrapper.addView(enabled, Ui.matchWrap());
 
+        TextView helpLink = Ui.action(this, "Ayuda", true);
+        helpLink.setPadding(0, Ui.dp(this, 10), 0, 0);
+        helpLink.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                showFilterHelpDialog();
+            }
+        });
+        wrapper.addView(helpLink, Ui.matchWrap());
+
         TextView tip = Ui.text(this,
                 "Mostrar/Ocultar controla la lista. Notificar/Silenciar controla los avisos. "
                         + "Las reglas Ocultar, Silenciar y las que no coinciden no afectan.",
                 12, Ui.secondaryColor(this), false);
-        tip.setPadding(0, Ui.dp(this, 10), 0, 0);
+        tip.setPadding(0, Ui.dp(this, 8), 0, 0);
         wrapper.addView(tip, Ui.matchWrap());
 
         final TextView testAction = Ui.action(this,
-                "Probar con contenido de notificación", true);
+                "Probar con artículo de la caché", true);
         testAction.setPadding(0, Ui.dp(this, 10), 0, Ui.dp(this, 2));
-        testAction.setVisibility(isNotificationAction(action.getSelectedItemPosition())
-                ? View.VISIBLE : View.GONE);
         testAction.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -1380,17 +1559,6 @@ public class MainActivity extends Activity {
             }
         });
         wrapper.addView(testAction, Ui.matchWrap());
-        action.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-            @Override
-            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                testAction.setVisibility(isNotificationAction(position)
-                        ? View.VISIBLE : View.GONE);
-            }
-
-            @Override
-            public void onNothingSelected(AdapterView<?> parent) {
-            }
-        });
 
         ScrollView scroll = new ScrollView(this);
         scroll.addView(wrapper);
@@ -1727,20 +1895,18 @@ public class MainActivity extends Activity {
             cached.remove(cached.size() - 1);
         }
 
-        final Random random = new Random();
-        final FilterSimulator.Sample[] generated = {
-                FilterSimulator.generate(draft, feeds, random)
-        };
         final Article[] selectedCache = {cached.isEmpty() ? null : cached.get(0)};
-        final int[] mode = {0};
+        if (selectedCache[0] == null) {
+            Toast.makeText(this, "No hay artículos en caché para probar.", Toast.LENGTH_SHORT).show();
+            return;
+        }
 
         LinearLayout wrapper = new LinearLayout(this);
         wrapper.setOrientation(LinearLayout.VERTICAL);
         wrapper.setPadding(Ui.dp(this, 20), Ui.dp(this, 8), Ui.dp(this, 20), Ui.dp(this, 4));
 
         TextView intro = Ui.text(this,
-                "Comprueba el filtro sin esperar a una notificación real. "
-                        + "Los cambios del formulario se usan solo para esta prueba.",
+                "Comprueba el filtro con un artículo real de la caché.",
                 12, Ui.secondaryColor(this), false);
         wrapper.addView(intro, Ui.matchWrap());
 
@@ -1759,43 +1925,14 @@ public class MainActivity extends Activity {
         LinearLayout modeRow = new LinearLayout(this);
         modeRow.setOrientation(LinearLayout.HORIZONTAL);
         modeRow.setPadding(0, Ui.dp(this, 12), 0, 0);
-        final TextView generatedChip = feedFilterChip("Contenido generado", true);
-        final TextView cacheChip = feedFilterChip("Artículo de la caché", false);
-        modeRow.addView(generatedChip, Ui.wrapWrap());
-        LinearLayout.LayoutParams cacheChipParams = Ui.wrapWrap();
-        cacheChipParams.leftMargin = Ui.dp(this, 6);
-        modeRow.addView(cacheChip, cacheChipParams);
+        final TextView cacheChipOnly = feedFilterChip("Artículo de la caché", true);
+        modeRow.addView(cacheChipOnly, Ui.wrapWrap());
         wrapper.addView(modeRow, Ui.matchWrap());
-
-        LinearLayout generatedBox = new LinearLayout(this);
-        generatedBox.setOrientation(LinearLayout.VERTICAL);
-        generatedBox.setPadding(0, Ui.dp(this, 12), 0, 0);
-        TextView inputLabel = dialogLabel("Texto de prueba · " + fieldLabel(draft.field));
-        inputLabel.setPadding(0, Ui.dp(this, 4), 0, Ui.dp(this, 4));
-        generatedBox.addView(inputLabel, Ui.matchWrap());
-        final EditText input = new EditText(this);
-        input.setText(generated[0].editableText(draft));
-        input.setTextSize(13);
-        input.setTextColor(Ui.textColor(this));
-        input.setHintTextColor(Ui.secondaryColor(this));
-        input.setBackground(Ui.rounded(Ui.surfaceAlt(this), Ui.dp(this, 10)));
-        input.setPadding(Ui.dp(this, 12), Ui.dp(this, 10), Ui.dp(this, 12), Ui.dp(this, 10));
-        input.setMinLines(3);
-        input.setMaxLines(8);
-        input.setGravity(Gravity.TOP | Gravity.START);
-        input.setInputType(InputType.TYPE_CLASS_TEXT
-                | InputType.TYPE_TEXT_FLAG_MULTI_LINE
-                | InputType.TYPE_TEXT_FLAG_CAP_SENTENCES);
-        generatedBox.addView(input, Ui.matchWrap());
-        TextView another = Ui.action(this, "Generar otro contenido", true);
-        another.setPadding(0, Ui.dp(this, 8), 0, 0);
-        generatedBox.addView(another, Ui.matchWrap());
-        wrapper.addView(generatedBox, Ui.matchWrap());
 
         LinearLayout cacheBox = new LinearLayout(this);
         cacheBox.setOrientation(LinearLayout.VERTICAL);
         cacheBox.setPadding(0, Ui.dp(this, 12), 0, 0);
-        cacheBox.setVisibility(View.GONE);
+        cacheBox.setVisibility(View.VISIBLE);
         TextView cacheLabel = dialogLabel("Artículo real");
         cacheLabel.setPadding(0, Ui.dp(this, 4), 0, Ui.dp(this, 4));
         cacheBox.addView(cacheLabel, Ui.matchWrap());
@@ -1839,22 +1976,14 @@ public class MainActivity extends Activity {
         final Runnable evaluate = new Runnable() {
             @Override
             public void run() {
-                Article article;
-                if (mode[0] == 0) {
-                    article = FilterSimulator.withText(generated[0].article, draft,
-                            input.getText().toString()).article;
-                } else {
-                    article = selectedCache[0];
-                }
+                Article article = selectedCache[0];
                 if (article == null) {
-                    result.setText("Añade alguna fuente y sincroniza para probar con un "
-                            + "artículo real, o usa el contenido generado.");
+                    result.setText("No hay artículos en caché para probar.");
                     cacheMeta.setText("");
                     return;
                 }
                 if (article.id != null && article.feedId != null) {
-                    cacheMeta.setText((mode[0] == 0 ? "Generado · " : "")
-                            + (article.feedTitle == null ? "" : article.feedTitle)
+                    cacheMeta.setText((article.feedTitle == null ? "" : article.feedTitle)
                             + (article.category == null || article.category.length() == 0
                             ? "" : " · " + article.category));
                 } else {
@@ -1902,27 +2031,7 @@ public class MainActivity extends Activity {
             }
         };
 
-        View.OnClickListener modeListener = new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                mode[0] = v == cacheChip ? 1 : 0;
-                generatedBox.setVisibility(mode[0] == 0 ? View.VISIBLE : View.GONE);
-                cacheBox.setVisibility(mode[0] == 1 ? View.VISIBLE : View.GONE);
-                applyModeChipStyle(generatedChip, mode[0] == 0);
-                applyModeChipStyle(cacheChip, mode[0] == 1);
-                evaluate.run();
-            }
-        };
-        generatedChip.setOnClickListener(modeListener);
-        cacheChip.setOnClickListener(modeListener);
-        another.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                generated[0] = FilterSimulator.generate(draft, feeds, random);
-                input.setText(generated[0].editableText(draft));
-                evaluate.run();
-            }
-        });
+        // Solo modo caché
         cacheSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
@@ -1941,20 +2050,7 @@ public class MainActivity extends Activity {
                 .setTitle("Probar filtro")
                 .setView(scroll)
                 .setNegativeButton("Cerrar", null)
-                .setPositiveButton("Probar", null)
                 .create();
-        dialog.setOnShowListener(new DialogInterface.OnShowListener() {
-            @Override
-            public void onShow(DialogInterface d) {
-                ((AlertDialog) d).getButton(AlertDialog.BUTTON_POSITIVE)
-                        .setOnClickListener(new View.OnClickListener() {
-                            @Override
-                            public void onClick(View v) {
-                                evaluate.run();
-                            }
-                        });
-            }
-        });
         dialog.show();
         evaluate.run();
     }
@@ -2260,6 +2356,11 @@ public class MainActivity extends Activity {
                 TextView title = Ui.text(MainActivity.this, "", 16,
                         Ui.textColor(MainActivity.this), true);
                 top.addView(title, Ui.weightWrap(1));
+                TextView edit = Ui.action(MainActivity.this, "Editar", true);
+                LinearLayout.LayoutParams editParams = Ui.wrapWrap();
+                editParams.leftMargin = Ui.dp(MainActivity.this, 8);
+                top.addView(edit, editParams);
+
                 TextView delete = dangerAction("Eliminar");
                 LinearLayout.LayoutParams deleteParams = Ui.wrapWrap();
                 deleteParams.leftMargin = Ui.dp(MainActivity.this, 8);
@@ -2286,6 +2387,7 @@ public class MainActivity extends Activity {
                 holder.title = title;
                 holder.url = url;
                 holder.status = status;
+                holder.edit = edit;
                 holder.delete = delete;
                 card.setTag(holder);
                 convertView = card;
@@ -2321,6 +2423,14 @@ public class MainActivity extends Activity {
                     selectTab(TAB_ARTICLES);
                 }
             });
+            if (holder.edit != null) {
+                holder.edit.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        showFeedDialog(feed);
+                    }
+                });
+            }
             holder.delete.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
@@ -2337,6 +2447,7 @@ public class MainActivity extends Activity {
         TextView title;
         TextView url;
         TextView status;
+        TextView edit;
         TextView delete;
     }
 
@@ -2508,5 +2619,167 @@ public class MainActivity extends Activity {
         TextView edit;
         TextView test;
         TextView delete;
+    }
+
+    private void showFilterHelpDialog() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("Tipos de filtro\n\n");
+        sb.append("Texto (contiene)\n");
+        sb.append("- Busca el patrón en el campo seleccionado.\n");
+        sb.append("- Ej: 'CVE-2024' en Cualquier campo.\n");
+        sb.append("- Ej: 'MSRC' en Título.\n\n");
+        sb.append("Palabra completa\n");
+        sb.append("- Coincide solo por palabra entera.\n");
+        sb.append("- Ej: 'IA' en Título (no 'IAx').\n");
+        sb.append("- Ej: 'XSS' o 'SQL' en Cualquier campo.\n\n");
+        sb.append("Expresión regular (Regex)\n");
+        sb.append("- Usa sintaxis regex.\n");
+        sb.append("- Ej: '^Actualización'\n");
+        sb.append("- Ej: 'CVE-\\d{4}-\\d{4}'\n");
+        sb.append("- Ej: '(?i)privacidad|seguridad'\n\n");
+        sb.append("Campos\n");
+        sb.append("- Cualquier campo, Título, Resumen, Contenido, Enlace, Autor o Fuente.\n\n");
+        sb.append("Acciones\n");
+        sb.append("- Mostrar / Ocultar: afecta a la lista.\n");
+        sb.append("- Notificar / Silenciar: afecta a las notificaciones.\n\n");
+        sb.append("Ámbito\n");
+        sb.append("- Todas las fuentes o una fuente concreta.\n\n");
+        sb.append("Notas\n");
+        sb.append("- Si hay reglas Mostrar, solo se verán las que coincidan con alguna regla Mostrar.\n");
+        sb.append("- Si hay reglas Notificar, solo se avisará de las que coincidan con alguna regla Notificar.\n");
+        sb.append("- Las reglas Ocultar/Silenciar tienen prioridad para ocultar/silenciar.\n");
+
+        ScrollView sv = new ScrollView(this);
+        TextView tv = Ui.text(this, sb.toString(), 12, Ui.textColor(this), false);
+        tv.setPadding(Ui.dp(this, 20), Ui.dp(this, 8), Ui.dp(this, 20), Ui.dp(this, 16));
+        sv.addView(tv);
+        new AlertDialog.Builder(this)
+                .setTitle("Ayuda de filtros")
+                .setView(sv)
+                .setNegativeButton("Cerrar", null)
+                .show();
+    }
+
+    private void exportFilters() {
+        List<FilterRule> rules = store.getRules();
+        String json = com.rsspro.core.FilterBackup.toJson(rules);
+        if (json == null) {
+            Toast.makeText(this, "Error al exportar filtros.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("application/json");
+        intent.putExtra(Intent.EXTRA_TITLE, "rsspro-filters.json");
+        try {
+            startActivityForResult(intent, REQUEST_EXPORT_FILTERS);
+        } catch (Exception e) {
+            Toast.makeText(this, "No se puede abrir el selector de archivos.", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void importFilters() {
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("application/json");
+        try {
+            startActivityForResult(intent, REQUEST_IMPORT_FILTERS);
+        } catch (Exception e) {
+            Toast.makeText(this, "No se puede abrir el selector de archivos.", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (resultCode != Activity.RESULT_OK || data == null) {
+            return;
+        }
+        Uri uri = data.getData();
+        if (uri == null) {
+            return;
+        }
+        if (requestCode == REQUEST_EXPORT_FILTERS) {
+            final String json = com.rsspro.core.FilterBackup.toJson(store.getRules());
+            new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        java.io.OutputStream os = getContentResolver().openOutputStream(uri);
+                        if (os != null) {
+                            com.rsspro.core.FilterBackup.write(os, json);
+                            os.close();
+                        }
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                Toast.makeText(MainActivity.this, "Filtros exportados.", Toast.LENGTH_SHORT).show();
+                            }
+                        });
+                    } catch (Exception e) {
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                Toast.makeText(MainActivity.this, "Error al exportar.", Toast.LENGTH_SHORT).show();
+                            }
+                        });
+                    }
+                }
+            }, "rsspro-export-filters").start();
+            return;
+        }
+        if (requestCode == REQUEST_IMPORT_FILTERS) {
+            new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        java.io.InputStream is = getContentResolver().openInputStream(uri);
+                        String content = com.rsspro.core.FilterBackup.read(is);
+                        if (is != null) {
+                            try {
+                                is.close();
+                            } catch (Exception ignored) {
+                            }
+                        }
+                        final List<FilterRule> imported = com.rsspro.core.FilterBackup.fromJson(content);
+                        if (imported == null) {
+                            runOnUiThread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    Toast.makeText(MainActivity.this, "Archivo no válido.", Toast.LENGTH_SHORT).show();
+                                }
+                            });
+                            return;
+                        }
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                new AlertDialog.Builder(MainActivity.this)
+                                        .setTitle("Importar filtros")
+                                        .setMessage("Se reemplazarán todos los filtros actuales por los del archivo.")
+                                        .setPositiveButton("Reemplazar", new DialogInterface.OnClickListener() {
+                                            @Override
+                                            public void onClick(DialogInterface dialog, int which) {
+                                                store.saveRules(imported);
+                                                render();
+                                                Toast.makeText(MainActivity.this, "Filtros importados.", Toast.LENGTH_SHORT).show();
+                                            }
+                                        })
+                                        .setNegativeButton("Cancelar", null)
+                                        .show();
+                            }
+                        });
+                    } catch (Exception e) {
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                Toast.makeText(MainActivity.this, "Error al importar.", Toast.LENGTH_SHORT).show();
+                            }
+                        });
+                    }
+                }
+            }, "rsspro-import-filters").start();
+            return;
+        }
     }
 }

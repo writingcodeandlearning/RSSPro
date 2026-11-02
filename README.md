@@ -48,6 +48,13 @@ La primera descarga de una fuente no genera notificaciones; solo establece la l�
 
 El botón `Probar` de un filtro de notificación abre un simulador. Permite editar el contenido de prueba o elegir un artículo real de la caché y muestra si la regla coincide, si el artículo sería visible y si generaría una notificación. La prueba no modifica reglas ni envía avisos.
 
+## Novedades 1.3.3
+
+- Fuentes editables: cambiar nombre y URL con migración de artículos y filtros.
+- Exportar e importar todos los filtros en JSON.
+- Probador de filtros solo con artículo de la caché.
+- Ayuda con ejemplos por tipo de filtro.
+
 ## Novedades 1.3.2
 
 - Marcar todo como leído solo afecta a los artículos sin leer de la selección actual (fuente o búsqueda).

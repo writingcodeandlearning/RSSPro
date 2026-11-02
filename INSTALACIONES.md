@@ -8,7 +8,7 @@ Objetivo: compilar y firmar un APK Android de RSS sin Gradle ni AndroidX, usando
 
 - APK: `dist/RSSPro.apk`
 - Paquete: `com.rsspro`
-- Versión: `1.3.2` (`versionCode` 6)
+- Versión: `1.3.3` (`versionCode` 7)
 - Nombre visible: `RSSPro`
 - SDK mínimo: 23 (Android 6.0)
 - SDK objetivo: 33 (Android 13)
@@ -79,6 +79,7 @@ tools/root/usr/lib
 22. Se añadieron pruebas del simulador, del orden `media:content`/`description` de MSRC y de páginas SPA sin texto, hasta un total de 108.
 23. Para la versión 1.3.1 se corrigió el gesto de deslizamiento: se eliminó el bloqueo tras movimientos no horizontales, se reevalúa la dirección en cada movimiento y se redujeron el umbral y la animación para hacerlo más fluido.
 24. Para la versión 1.3.2 se limita «Marcar todo como leído» al alcance visible (fuente y búsqueda) y se hace el deslizamiento estable al umbral sin rebote.
+25. La versión 1.3.3 añade edición de fuentes, exportar/importar filtros, probador solo con caché y ayuda de filtros.
 
 ## Verificaciones ejecutadas
 
