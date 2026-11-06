@@ -221,6 +221,17 @@ public class ArticleActivity extends Activity {
         unreadParams.leftMargin = Ui.dp(this, 8);
         secondary.addView(unread, unreadParams);
 
+        final TextView favorite = Ui.action(this, favoriteLabel(), false);
+        favorite.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                toggleFavorite(favorite);
+            }
+        });
+        LinearLayout.LayoutParams favoriteParams = Ui.weightWrap(1);
+        favoriteParams.leftMargin = Ui.dp(this, 8);
+        secondary.addView(favorite, favoriteParams);
+
         body.addView(secondary, Ui.matchWrap());
 
         if (article.link != null && article.link.trim().length() > 0) {
@@ -432,6 +443,24 @@ public class ArticleActivity extends Activity {
             Toast.makeText(this, "No se pudo compartir el artículo.",
                     Toast.LENGTH_SHORT).show();
         }
+    }
+
+    private String favoriteLabel() {
+        return article != null && article.favorite ? "★ Quitar favorito" : "☆ Favorito";
+    }
+
+    private void toggleFavorite(TextView action) {
+        if (article == null || article.id == null) {
+            return;
+        }
+        boolean favorite = !article.favorite;
+        article.favorite = favorite;
+        store.setFavorite(article.id, favorite);
+        if (action != null) {
+            action.setText(favoriteLabel());
+        }
+        Toast.makeText(this, favorite ? "Añadido a favoritos." : "Quitado de favoritos.",
+                Toast.LENGTH_SHORT).show();
     }
 
     private void copyLink() {

@@ -7,8 +7,9 @@ Lector de RSS/Atom nativo para Android, escrito en Java sin Gradle, sin AndroidX
 - Feeds RSS 2.0, Atom y RSS 1.0/RDF.
 - Soporte de `content:encoded`, Dublin Core, `guid`, enlaces relativos, BOM, gzip y redirecciones HTTP.
 - Lista de artículos con miniaturas, lector interno y estado leído/no leído.
+- Marcar artículos como favoritos desde la lista o el lector; el modo `Favoritos` muestra solo los marcados y no se eliminan automáticamente por retención ni por los límites de caché.
 - Deslizar un artículo sin leer hacia la derecha lo marca como leído.
-- Modos de lista `Todos`, `Sin leer`, `Leídos` y `Buscar` con búsqueda en título, resumen, contenido, detalle, autor, fuente, categoría y enlace.
+- Modos de lista `Todos`, `Sin leer`, `Leídos`, `Favoritos` y `Buscar` con búsqueda en título, resumen, contenido, detalle, autor, fuente, categoría y enlace.
 - Carga automática del artículo completo desde la web cuando el feed solo trae un resumen.
 - Detalle con fecha, autor, categoría, fuente y enlace original.
 - Imagen principal en el lector y logos de fuente extraídos de RSS, Atom, `media:*`, `enclosure` o HTML.

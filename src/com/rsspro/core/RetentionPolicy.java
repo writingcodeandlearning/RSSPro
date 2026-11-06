@@ -20,7 +20,8 @@ public final class RetentionPolicy {
     }
 
     public static boolean isExpired(Article article, long now, int retentionDays) {
-        if (article == null || retentionDays <= 0 || article.publishedAt <= 0L) {
+        if (article == null || article.favorite || retentionDays <= 0
+                || article.publishedAt <= 0L) {
             return false;
         }
         return article.publishedAt < cutoff(now, retentionDays);

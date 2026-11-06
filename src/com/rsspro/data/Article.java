@@ -14,6 +14,7 @@ public class Article {
     public String category;
     public long publishedAt;
     public long fullFetchAt;
+    public boolean favorite;
 
     public Article() {
     }

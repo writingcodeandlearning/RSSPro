@@ -194,6 +194,7 @@ public class Store {
                 article.category = object.optString("category", "");
                 article.publishedAt = object.optLong("publishedAt", 0L);
                 article.fullFetchAt = object.optLong("fullFetchAt", 0L);
+                article.favorite = object.optBoolean("favorite", false);
                 if (article.id.length() > 0) {
                     articles.add(article);
                 }
@@ -232,6 +233,7 @@ public class Store {
                 object.put("category", article.category == null ? "" : article.category);
                 object.put("publishedAt", article.publishedAt);
                 object.put("fullFetchAt", article.fullFetchAt);
+                object.put("favorite", article.favorite);
                 array.put(object);
             } catch (JSONException ex) {
                 Log.e(TAG, "No se pudo guardar un artículo", ex);
@@ -322,6 +324,29 @@ public class Store {
         Set<String> read = getReadIds();
         if (read.remove(articleId)) {
             prefs.edit().putStringSet(KEY_READ, read).apply();
+        }
+    }
+
+    public void setFavorite(String articleId, boolean favorite) {
+        if (articleId == null) {
+            return;
+        }
+        synchronized (SYNC_LOCK) {
+            List<Article> articles = getArticles();
+            boolean changed = false;
+            for (Article article : articles) {
+                if (!articleId.equals(article.id)) {
+                    continue;
+                }
+                if (article.favorite != favorite) {
+                    article.favorite = favorite;
+                    changed = true;
+                }
+                break;
+            }
+            if (changed) {
+                saveArticles(articles);
+            }
         }
     }
 

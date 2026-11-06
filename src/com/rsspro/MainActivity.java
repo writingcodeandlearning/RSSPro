@@ -85,8 +85,10 @@ public class MainActivity extends Activity {
     private static final int MODE_ALL = 0;
     private static final int MODE_UNREAD = 1;
     private static final int MODE_READ = 2;
-    private static final int MODE_SEARCH = 3;
-    private static final String[] MODE_LABELS = {"Todos", "Sin leer", "Leídos", "Buscar"};
+    private static final int MODE_FAVORITE = 3;
+    private static final int MODE_SEARCH = 4;
+    private static final String[] MODE_LABELS =
+            {"Todos", "Sin leer", "Leídos", "Favoritos", "Buscar"};
     private static final long SEARCH_DEBOUNCE_MS = 250L;
 
     private static final String[] ACTION_LABELS = {
@@ -123,7 +125,7 @@ public class MainActivity extends Activity {
     private String selectedFeedId;
     private boolean syncing;
     private LinearLayout articlesBar;
-    private final TextView[] modeChips = new TextView[4];
+    private final TextView[] modeChips = new TextView[5];
     private LinearLayout searchRow;
     private EditText searchInput;
     private int articleMode = MODE_ALL;
@@ -595,6 +597,9 @@ public class MainActivity extends Activity {
             if (articleMode == MODE_READ && !read) {
                 continue;
             }
+            if (articleMode == MODE_FAVORITE && !article.favorite) {
+                continue;
+            }
             if (articleMode == MODE_SEARCH && normalizedQuery.length() > 0
                     && !ArticleSearch.matches(article, searchQuery)) {
                 continue;
@@ -620,6 +625,8 @@ public class MainActivity extends Activity {
             summaryText = displayed.size() + " sin leer de " + all.size() + " artículos";
         } else if (articleMode == MODE_READ) {
             summaryText = displayed.size() + " leídos de " + all.size() + " artículos";
+        } else if (articleMode == MODE_FAVORITE) {
+            summaryText = displayed.size() + " favoritos de " + all.size() + " artículos";
         } else if (articleMode == MODE_SEARCH && normalizedQuery.length() > 0) {
             String query = searchQuery.trim();
             if (query.length() > 26) {
@@ -644,6 +651,9 @@ public class MainActivity extends Activity {
         for (Article article : sourceArticles) {
             if (articleMode == MODE_SEARCH && normalizedQueryScope.length() > 0
                     && !ArticleSearch.matches(article, searchQuery)) {
+                continue;
+            }
+            if (articleMode == MODE_FAVORITE && !article.favorite) {
                 continue;
             }
             readScope.add(article);
@@ -690,6 +700,16 @@ public class MainActivity extends Activity {
                 addArticleSummary(root, summaryText, readScope, unreadScope);
                 addInlineEmpty(root, "No hay artículos leídos",
                         "Todavía no has abierto ningún artículo de esta selección.",
+                        "Ver todos", new View.OnClickListener() {
+                            @Override
+                            public void onClick(View v) {
+                                setArticleMode(MODE_ALL);
+                            }
+                        });
+            } else if (articleMode == MODE_FAVORITE) {
+                addArticleSummary(root, summaryText, readScope, unreadScope);
+                addInlineEmpty(root, "No hay favoritos",
+                        "Marca la estrella de un artículo para guardarlo aquí.",
                         "Ver todos", new View.OnClickListener() {
                             @Override
                             public void onClick(View v) {
@@ -1143,6 +1163,31 @@ public class MainActivity extends Activity {
         card.setAlpha(1.0f);
         prepareArticleScrollRestore();
         renderArticles();
+    }
+
+    private void toggleFavorite(Article article) {
+        if (article == null || article.id == null) {
+            return;
+        }
+        boolean favorite = !article.favorite;
+        article.favorite = favorite;
+        store.setFavorite(article.id, favorite);
+        Toast.makeText(this, favorite ? "Añadido a favoritos." : "Quitado de favoritos.",
+                Toast.LENGTH_SHORT).show();
+        prepareArticleScrollRestore();
+        renderArticles();
+    }
+
+    private boolean hitView(View target, MotionEvent event) {
+        if (target == null || target.getVisibility() != View.VISIBLE) {
+            return false;
+        }
+        int[] location = new int[2];
+        target.getLocationOnScreen(location);
+        float x = event.getRawX();
+        float y = event.getRawY();
+        return x >= location[0] && x <= location[0] + target.getWidth()
+                && y >= location[1] && y <= location[1] + target.getHeight();
     }
 
     private void showEmpty(String title, String message, String actionLabel,
@@ -2145,6 +2190,13 @@ public class MainActivity extends Activity {
                         Ui.secondaryColor(MainActivity.this), false);
                 top.addView(date, Ui.wrapWrap());
 
+                TextView star = Ui.text(MainActivity.this, "", 18,
+                        Ui.secondaryColor(MainActivity.this), false);
+                star.setGravity(Gravity.CENTER);
+                star.setMinWidth(Ui.dp(MainActivity.this, 40));
+                star.setPadding(Ui.dp(MainActivity.this, 8), 0, 0, 0);
+                top.addView(star, Ui.wrapWrap());
+
                 TextView title = Ui.text(MainActivity.this, "", 17,
                         Ui.textColor(MainActivity.this), true);
                 title.setMaxLines(3);
@@ -2190,6 +2242,7 @@ public class MainActivity extends Activity {
                 holder.title = title;
                 holder.summary = summary;
                 holder.image = image;
+                holder.star = star;
                 card.setTag(holder);
                 convertView = card;
             } else {
@@ -2203,6 +2256,9 @@ public class MainActivity extends Activity {
             holder.dot.setVisibility(read ? View.INVISIBLE : View.VISIBLE);
             holder.feed.setText(article.feedTitle);
             holder.date.setText(relativeTime(article.publishedAt));
+            holder.star.setText(article.favorite ? "★" : "☆");
+            holder.star.setTextColor(article.favorite
+                    ? Ui.accent(MainActivity.this) : Ui.secondaryColor(MainActivity.this));
             holder.title.setText(article.displayTitle());
             holder.title.setTypeface(Typeface.create(
                     read ? "sans-serif" : "sans-serif-medium", Typeface.NORMAL));
@@ -2220,6 +2276,7 @@ public class MainActivity extends Activity {
                 ImageLoader.load(MainActivity.this, holder.image, article.imageUrl,
                         Ui.dp(MainActivity.this, 88), Ui.dp(MainActivity.this, 88));
             }
+            final TextView starView = holder.star;
             holder.card.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
@@ -2279,7 +2336,11 @@ public class MainActivity extends Activity {
                                 view.setTranslationX(0);
                                 view.setAlpha(1.0f);
                                 if (!moved) {
-                                    view.performClick();
+                                    if (hitView(starView, event)) {
+                                        toggleFavorite(article);
+                                    } else {
+                                        view.performClick();
+                                    }
                                 }
                             }
                             return true;
@@ -2306,6 +2367,7 @@ public class MainActivity extends Activity {
         TextView title;
         TextView summary;
         ImageView image;
+        TextView star;
     }
 
     private class FeedAdapter extends BaseAdapter {

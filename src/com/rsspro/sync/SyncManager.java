@@ -172,6 +172,7 @@ public final class SyncManager {
                     if (cached != null) {
                         article.fullContent = cached.fullContent;
                         article.fullFetchAt = cached.fullFetchAt;
+                        article.favorite = cached.favorite;
                         if (article.category == null || article.category.length() == 0) {
                             article.category = cached.category;
                         }
@@ -219,11 +220,17 @@ public final class SyncManager {
     }
 
     private static List<Article> limitArticles(List<Article> articles) {
+        Set<Article> kept = new HashSet<Article>();
         Map<String, Integer> perFeed = new HashMap<String, Integer>();
-        List<Article> kept = new ArrayList<Article>();
+        int total = 0;
         for (Article article : articles) {
-            if (kept.size() >= MAX_ARTICLES_TOTAL) {
-                break;
+            if (article.favorite) {
+                kept.add(article);
+            }
+        }
+        for (Article article : articles) {
+            if (article.favorite || total >= MAX_ARTICLES_TOTAL) {
+                continue;
             }
             Integer count = perFeed.get(article.feedId);
             int value = count == null ? 0 : count;
@@ -232,8 +239,15 @@ public final class SyncManager {
             }
             perFeed.put(article.feedId, value + 1);
             kept.add(article);
+            total++;
         }
-        return kept;
+        List<Article> result = new ArrayList<Article>();
+        for (Article article : articles) {
+            if (kept.contains(article)) {
+                result.add(article);
+            }
+        }
+        return result;
     }
 
     private static String message(Throwable throwable) {

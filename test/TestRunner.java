@@ -36,6 +36,7 @@ public final class TestRunner {
         testFilters();
         testWordAndRegex();
         testFilterSimulator();
+        testFavorites();
         testMsrcRegression();
         System.out.println();
         System.out.println(passed + " pruebas correctas, " + failed + " fallidas");
@@ -528,6 +529,22 @@ public final class TestRunner {
                 edited.article.content);
         check("Simulador evalúa regex", true,
                 FilterEngine.ruleMatches(edited.article, regex));
+    }
+
+    private static void testFavorites() {
+        long now = 1_800_000_000_000L;
+        long day = 24L * 60L * 60L * 1000L;
+        Article oldFavorite = article("Antiguo favorito", "Resumen", "Fuente");
+        oldFavorite.id = "fav-old";
+        oldFavorite.publishedAt = now - 40L * day;
+        oldFavorite.favorite = true;
+        Article oldPlain = article("Antiguo normal", "Resumen", "Fuente");
+        oldPlain.id = "plain-old";
+        oldPlain.publishedAt = now - 40L * day;
+        check("Retención conserva favoritos", 1,
+                RetentionPolicy.retain(list(oldFavorite, oldPlain), now, 30).size());
+        check("Retención no marca favorito como expirado", false,
+                RetentionPolicy.isExpired(oldFavorite, now, 30));
     }
 
     private static void testMsrcRegression() {
